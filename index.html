@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Streaming Site</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        /* The player container styling */
+        #player-container {
+            width: 80%;
+            max-width: 900px;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Now Playing</h1>
+    <div id="player-container"></div>
+
+    <script>
+        class PeachifyPlayer {
+            constructor(options) {
+                this.container = document.getElementById(options.containerId);
+                this.mediaId = options.mediaId;
+                this.mediaType = options.mediaType;
+                this.season = options.season;
+                this.episode = options.episode;
+                this.params = options.params || {};
+                this.onPlayerEvent = options.onPlayerEvent || (() => {});
+                this.onMediaData = options.onMediaData || (() => {});
+                this.init();
+            }
+
+            buildUrl() {
+                const baseUrl = 'https://peachify.pro';
+                let endpoint = this.mediaType === 'movie' 
+                    ? `/embed/movie/${this.mediaId}` 
+                    : `/embed/tv/${this.mediaId}/${this.season || 1}/${this.episode || 1}`;
+
+                const url = new URL(endpoint, baseUrl);
+                Object.entries(this.params).forEach(([key, value]) => {
+                    if (value !== undefined) url.searchParams.append(key, value);
+                });
+                return url.toString();
+            }
+
+            init() {
+                this.container.innerHTML = '';
+                const iframe = document.createElement('iframe');
+                iframe.src = this.buildUrl();
+                iframe.width = '100%';
+                iframe.height = '100%';
+                iframe.setAttribute('allowfullscreen', 'true');
+                iframe.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
+                iframe.style.border = 'none';
+                this.container.appendChild(iframe);
+
+                window.addEventListener('message', (event) => {
+                    if (event.origin !== 'https://peachify.pro') return;
+                    if (event.data?.type === 'MEDIA_DATA') this.onMediaData(event.data.data);
+                    if (event.data?.type === 'PLAYER_EVENT') this.onPlayerEvent(event.data.data);
+                });
+            }
+        }
+
+        // Initialize the player
+        const player = new PeachifyPlayer({
+            containerId: 'player-container',
+            mediaId: 76479, // The Boys
+            mediaType: 'tv',
+            season: 1,
+            episode: 1,
+            params: { dub: 'English', accent: 'B54666' },
+            onPlayerEvent: (data) => console.log('Event:', data.event),
+            onMediaData: (data) => console.log('Progress updated')
+        });
+    </script>
+</body>
+</html>
